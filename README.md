@@ -1,5 +1,7 @@
 # User Profile API
 
+[![Ask DeepWiki](https://devin.ai/assets/askdeepwiki.png)](https://deepwiki.com/JorjitDasoria/CW2)
+
 This repository contains a Python-based microservice for managing user profiles. Built with Flask and Connexion, it provides a RESTful API for handling users, roles, locations, activities, and saved trails. The application uses SQLAlchemy for database operations with a Microsoft SQL Server and Marshmallow for data serialization. It is fully containerized using Docker.
 
 ## Features
