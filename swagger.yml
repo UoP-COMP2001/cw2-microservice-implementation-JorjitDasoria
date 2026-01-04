@@ -1,0 +1,753 @@
+openapi: 3.0.0
+info:
+  title: "User Profile API"
+  description: "API for managing Users"
+  version: "1.0.0"
+
+servers:
+  - url: "/api"
+
+components:
+  schemas:
+    User:
+      type: "object"
+      required:
+        - first_name
+        - last_name
+        - email
+        - role_id
+        - location_id
+        
+      properties:
+        user_id:
+          type: "integer"
+          readOnly: true
+        first_name:
+          type: "string"
+        last_name:
+          type: "string"
+        email:
+          type: "string"
+          format: "email"
+        phone_number:
+          type: "string"
+        role_id:
+          type: "integer"
+        location_id:
+          type: "integer"
+        about_me:
+          type: "string"
+        height:
+          type: "number"
+        weight:
+          type: "number"
+        birthday:
+          type: "string"
+          format: "date"
+        password:
+          type: "string"
+    
+
+    Role:
+      type: "object"
+      required:
+        - role_name
+      properties:
+        role_id:
+          type: "integer"
+          readOnly: true
+        role_name:
+          type: "string"
+
+    
+    Activity:
+      type: "object"
+      required:
+        - activity_name
+      properties:
+        activity_id:
+          type: "integer"
+          readOnly: true
+        activity_name:
+          type: "string"
+          example: "biking"
+    
+    Location:
+      type: "object"
+      required:
+        - location_name
+        - default_units
+        - default_language
+      properties:
+        location_id:
+          type: "integer"
+          readOnly: true
+        location_name:
+          type: "string"
+          example: "Plymouth, Devon"
+        default_units:
+          type: "string"
+          enum: ["Metric", "Imperial"]
+          example: "Metric"
+        default_language:
+          type: "string"
+          example: "en"
+    
+    UserLog:
+      type: "object"
+      properties:
+        log_id:
+          type: "integer"
+          readOnly: true
+        user_id_added:
+          type: "integer"
+        first_name_added:
+          type: "string"
+        last_name_added:
+          type: "string"
+        email_added:
+          type: "string"
+        timestamp_added:
+          type: "string"
+          format: "date-time"
+
+    SavedTrail:
+      type: object
+      required:
+        - trail_id
+      properties:
+        saved_id:
+          type: integer
+          readOnly: true
+        user_id:
+          type: integer
+          readOnly: true
+        trail_id:
+          type: integer
+          description: "The ID of the trail from the external TrailService"
+        saved_date:
+          type: string
+          format: "date-time"
+          readOnly: true
+
+
+  parameters:
+    user_id:
+      name: "user_id"
+      description: "ID of the user"
+      in: path
+      required: True
+      schema:
+        type: "integer"
+    
+
+  
+
+paths:
+  /login:
+    post:
+      operationId: "auth.login"
+      tags:
+        - "Auth"
+      summary: "Login"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "200":
+          description: "Login Successful"
+  /logout:
+    post:
+      operationId: "auth.logout"
+      tags:
+        - "Auth"
+      summary: "Logout"
+      responses:
+        "200":
+          description: "Logged out"
+
+
+  /users:
+    get:
+      operationId: "users.read_all"
+      tags:
+        - "Users"
+      summary: "Read list of users (Password hidden for non-Admins)"
+
+      responses:
+        "200":
+          description: "Successfully fetched users"
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/User"
+
+    post:
+      operationId: "users.create"
+      tags:
+        - "Users"
+      summary: "Create a new user (Admin Only)"
+
+      requestBody:
+        description: "User to create"
+        required: true
+        content:
+          application/json:
+            schema:
+              x-body-name: "user_data"
+              $ref: "#/components/schemas/User"
+      responses:
+        "201":
+          description: "Successfully created user"
+        "403":
+          description: "Permission Denied: Only administrators can create users"
+        "406":
+          description: "User with this email already exists"
+
+  /users/{user_id}:
+    get:
+      operationId: "users.read_one"
+      tags:
+        - "Users"
+      summary: "Read one user (Password hidden for non-Admins)"
+      parameters:
+        - name: "user_id"
+          in: path
+          required: true
+          schema:
+            type: "integer"
+        
+      responses:
+        "200":
+          description: "Successfully read user"
+        "404":
+          description: "User not found"
+    
+    put:
+      operationId: "users.update"
+      tags:
+        - "Users"
+      summary: "Update a user (Admin Only)"
+      parameters:
+        - name: "user_id"
+          in: path
+          required: true
+          schema:
+            type: "integer"
+        
+      requestBody:
+        content:
+          application/json:
+            schema:
+              x-body-name: "user_data"
+              $ref: "#/components/schemas/User"
+      responses:
+        "200":
+          description: "Successfully updated user"
+        "403":
+          description: "Permission Denied"
+        "404":
+          description: "User not found"
+
+    delete:
+      operationId: "users.delete"
+      tags:
+        - "Users"
+      summary: "Delete a user (Admin Only)"
+      parameters:
+        - name: "user_id"
+          in: path
+          required: true
+          schema:
+            type: "integer"
+        
+      responses:
+        "204":
+          description: "Successfully deleted user"
+        "403":
+          description: "Permission Denied"
+        "404":
+          description: "User not found"
+  
+  /users/{user_id}/saved_trails:
+    get:
+      operationId: "saved_trails.read_all"
+      tags:
+        - "Saved Trails"
+      summary: "Get list of trails saved by a user"
+      parameters:
+        - name: "user_id"
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: "Success"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SavedTrail"
+        "401":
+          description: "Not logged in"
+
+    post:
+      operationId: "saved_trails.add_trail"
+      tags:
+        - "Saved Trails"
+      summary: "Save a trail to profile"
+      parameters:
+        - name: "user_id"
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                trail_id:
+                  type: integer
+      responses:
+        "201":
+          description: "Trail saved"
+        "409":
+          description: "Trail already saved"
+
+  /users/{user_id}/saved_trails/{trail_id}:
+    delete:
+      operationId: "saved_trails.remove_trail"
+      tags:
+        - "Saved Trails"
+      summary: "Remove a saved trail"
+      parameters:
+        - name: "user_id"
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: "trail_id"
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: "Trail removed"
+        "404":
+          description: "Trail not found in list"
+
+  
+  /users/{user_id}/activities:
+    post:
+      operationId: "user_activities.add_favorite"
+      tags:
+        - "User Activity"
+      summary: "Add an activity to a user's favorites"
+      parameters:
+        - name: "user_id"
+          in: path
+          required: true
+          schema:
+            type: "integer"  
+      requestBody:
+        description: "ID of the activity to add"
+        required: true
+        content:
+          application/json:
+            schema:
+              type: "object"
+              properties:
+                activity_id:
+                  type: "integer"
+      responses:
+        "201":
+          description: "Activity added successfully"
+        "409":
+          description: "Activity already in list"
+        "403":
+          description: "Permission Denied"
+
+  /users/{user_id}/activities/{activity_id}:
+    delete:
+      operationId: "user_activities.remove_favorite"
+      tags:
+        - "User Favorites"
+      summary: "Remove an activity from a user's favorites"
+      parameters:
+        - name: "user_id"
+          in: path
+          required: true
+          schema:
+            type: "integer"
+        - name: "activity_id"
+          in: path
+          required: true
+          schema:
+            type: "integer"
+        
+      responses:
+        "204":
+          description: "Activity removed successfully"
+        "403":
+          description: "Permission Denied"
+  
+
+
+
+  /roles:
+    get:
+      operationId: "roles.read_all"
+      tags:
+        - "Roles"
+      summary: "Read the list of all roles"
+      responses:
+        "200":
+          description: "Successfully fetched roles"
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/Role"
+    post:
+      operationId: "roles.create"
+      tags:
+        - "Roles"
+      summary: "Create a new role"
+      requestBody:
+        description: "Role to create"
+        required: true
+        content:
+          application/json:
+            schema:
+              x-body-name: "role_data"
+              $ref: "#/components/schemas/Role"
+      responses:
+        "201":
+          description: "Successfully created role"
+        "406":
+          description: "Role already exists"
+
+  /roles/{role_id}:
+    get:
+      operationId: "roles.read_one"
+      tags:
+        - "Roles"
+      summary: "Read one role"
+      parameters:
+        - name: "role_id"
+          in: path
+          required: true
+          schema:
+            type: "integer"
+      responses:
+        "200":
+          description: "Successfully read role"
+        "404":
+          description: "Role not found"
+    
+    put:
+      operationId: "roles.update"
+      tags:
+        - "Roles"
+      summary: "Update a role"
+      parameters:
+        - name: "role_id"
+          in: path
+          required: true
+          schema:
+            type: "integer"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              x-body-name: "role_data"
+              $ref: "#/components/schemas/Role"
+      responses:
+        "200":
+          description: "Successfully updated role"
+        "404":
+          description: "Role not found"
+
+    delete:
+      operationId: "roles.delete"
+      tags:
+        - "Roles"
+      summary: "Delete a role"
+      parameters:
+        - name: "role_id"
+          in: path
+          required: true
+          schema:
+            type: "integer"
+      responses:
+        "204":
+          description: "Successfully deleted role"
+        "404":
+          description: "Role not found"
+  
+
+  /activities:
+    get:
+      operationId: "activities.read_all"
+      tags:
+        - "Activities"
+      summary: "Read the list of all activities"
+      responses:
+        "200":
+          description: "Successfully fetched activities"
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/Activity"
+    
+    post:
+      operationId: "activities.create"
+      tags:
+        - "Activities"
+      summary: "Create a new activity (Admin Only)"
+      
+      requestBody:
+        description: "Activity to create"
+        required: true
+        content:
+          application/json:
+            schema:
+              x-body-name: "activity_data"
+              $ref: "#/components/schemas/Activity"
+      responses:
+        "201":
+          description: "Successfully created activity"
+        "403":
+          description: "Permission Denied"
+        "406":
+          description: "Activity already exists"
+
+  /activities/{activity_id}:
+    get:
+      operationId: "activities.read_one"
+      tags:
+        - "Activities"
+      summary: "Read one activity"
+      parameters:
+        - name: "activity_id"
+          in: path
+          required: true
+          schema:
+            type: "integer"
+      responses:
+        "200":
+          description: "Successfully read activity"
+        "404":
+          description: "Activity not found"
+    
+    put:
+      operationId: "activities.update"
+      tags:
+        - "Activities"
+      summary: "Update an activity (Admin Only)"
+      parameters:
+        - name: "activity_id"
+          in: path
+          required: true
+          schema:
+            type: "integer"
+        
+      requestBody:
+        content:
+          application/json:
+            schema:
+              x-body-name: "activity_data"
+              $ref: "#/components/schemas/Activity"
+      responses:
+        "200":
+          description: "Successfully updated activity"
+        "403":
+          description: "Permission Denied"
+        "404":
+          description: "Activity not found"
+
+    delete:
+      operationId: "activities.delete"
+      tags:
+        - "Activities"
+      summary: "Delete an activity (Admin Only)"
+      parameters:
+        - name: "activity_id"
+          in: path
+          required: true
+          schema:
+            type: "integer"
+        
+      responses:
+        "204":
+          description: "Successfully deleted activity"
+        "403":
+          description: "Permission Denied"
+        "404":
+          description: "Activity not found"
+  
+
+  /locations:
+    get:
+      operationId: "location.read_all"
+      tags:
+        - "Locations"
+      summary: "Read the list of all locations"
+      responses:
+        "200":
+          description: "Successfully fetched locations"
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/Location"
+    
+    post:
+      operationId: "location.create"
+      tags:
+        - "Locations"
+      summary: "Create a new location (Admin Only)"
+      
+      requestBody:
+        description: "Location to create"
+        required: true
+        content:
+          application/json:
+            schema:
+              x-body-name: "location_data"
+              $ref: "#/components/schemas/Location"
+      responses:
+        "201":
+          description: "Successfully created location"
+        "403":
+          description: "Permission Denied"
+        "406":
+          description: "Location already exists"
+
+  /locations/{location_id}:
+    get:
+      operationId: "location.read_one"
+      tags:
+        - "Locations"
+      summary: "Read one location"
+      parameters:
+        - name: "location_id"
+          in: path
+          required: true
+          schema:
+            type: "integer"
+      responses:
+        "200":
+          description: "Successfully read location"
+        "404":
+          description: "Location not found"
+    
+    put:
+      operationId: "location.update"
+      tags:
+        - "Locations"
+      summary: "Update a location (Admin Only)"
+      parameters:
+        - name: "location_id"
+          in: path
+          required: true
+          schema:
+            type: "integer"
+        - name: "X-User-ID"
+          in: header
+          description: "ID of the requester (Admin check)"
+          required: false
+          schema:
+            type: "integer"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              x-body-name: "location_data"
+              $ref: "#/components/schemas/Location"
+      responses:
+        "200":
+          description: "Successfully updated location"
+        "403":
+          description: "Permission Denied"
+        "404":
+          description: "Location not found"
+
+    delete:
+      operationId: "location.delete"
+      tags:
+        - "Locations"
+      summary: "Delete a location (Admin Only)"
+      parameters:
+        - name: "location_id"
+          in: path
+          required: true
+          schema:
+            type: "integer"
+        
+      responses:
+        "204":
+          description: "Successfully deleted location"
+        "403":
+          description: "Permission Denied"
+        "404":
+          description: "Location not found"
+        "409":
+          description: "Cannot delete: Users still assigned to this location"
+
+  /user_logs:
+    get:
+      operationId: "user_logs.read_all"
+      tags:
+        - "trigger Logs"
+      summary: "Read audit logs (Admin Only)"
+      responses:
+        "200":
+          description: "Successfully fetched logs"
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/UserLog"
+        "403":
+           description: "Permission Denied"
+
+  /user_logs/{log_id}:
+    get:
+      operationId: "user_logs.read_one"
+      tags:
+        - "Audit Logs"
+      summary: "Read one log entry"
+      parameters:
+        - name: "log_id"
+          in: path
+          required: true
+          schema:
+            type: "integer"
+      responses:
+        "200":
+          description: "Successfully read log"
+        "403":
+           description: "Permission Denied"
+        "404":
+          description: "Log not found"
